@@ -28,11 +28,13 @@
 <div class="admin-box">
     <h2>🔒 つい言った〜 管理者コントロール</h2>
     
+    <!-- パスワード入力 -->
     <div class="form-group">
         <label for="adminPass">管理者パスワード（configのB2）</label>
         <input type="password" id="adminPass" placeholder="パスワードを入力してください">
     </div>
 
+    <!-- ユーザーブロック・復活 -->
     <div class="block-box">
         <h3 style="margin-top:0; color:#e65100;">👤 ユーザーの管理（出禁・復活）</h3>
         <div class="form-group">
@@ -44,6 +46,7 @@
         </div>
     </div>
 
+    <!-- 投稿一覧と削除 -->
     <h3>📝 投稿の管理（最新30件）</h3>
     <button onclick="loadAdminTimeline()" style="background:#0288d1; margin-bottom: 15px;">タイムラインを読み込む・更新する</button>
     <div id="adminTimeline">ボタンを押して読み込んでください。</div>
@@ -82,6 +85,10 @@
                 `;
                 container.appendChild(div);
             });
+        })
+        .catch(err => {
+            container.innerText = "通信エラーが発生しました💩";
+            console.error(err);
         });
     }
 
@@ -106,7 +113,7 @@
         });
     }
 
-// ユーザー操作（ブロック / 復活）
+    // ユーザー操作（ブロック / 復活）
     function blockUser(isBlock) {
         var pass = document.getElementById("adminPass").value;
         var username = document.getElementById("blockUsername").value.trim();
@@ -134,23 +141,6 @@
                 alert("エラー: " + data.error);
             }
         });
-    }
-
-        // 裏側の動作：禁止にする場合は「admin_block_user」を呼び出す
-        // 復活（利用中）にする場合は、GAS側を直接拡張する代わりに、このフロントエンド側から特別な合図、
-        // または今回は既存の「利用停止」と同じ仕組みを応用します。
-        // ※実はGAS側の「admin_block_user」は、内部を少し工夫すればそのまま「復活」にも使えますが、
-        // 今回のGASは「禁止」という文字を書き込む専用になっているため、
-        // 復活ボタンが押された場合は「復活処理用の通信」を行います。
-        
-        // と思いましたが、既存のGASコードを汚さないために、
-        // 復活ボタンが押された場合でもGASに「禁止」ではなくスプレッドシートを直接更新するような
-        // 拡張的な命令、あるいは前回のGASコードのまま対応できるよう調整してあります。
-        // ※もし前回のGASコードをそのまま使う場合、「利用中」に戻す仕組みをGAS側が持っている必要があります。
-        // 前回のGASコードを確認すると、`userSheet.getRange(i + 1, 5).setValue("禁止");` と固定で書き込まれるようになっています。
-        // そのため、確実に「復活」させるために、お手数ですが、GAS側のコードも「復活対応版」に1行だけ拡張させてください！
-        
-        // ※このJavaScriptの下で、一番安全な方法をご案内します。
     }
 
     function escapeHtml(str) {
