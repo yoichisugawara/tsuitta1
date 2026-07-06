@@ -106,18 +106,35 @@
         });
     }
 
-    // ユーザー操作（ブロック / 復活）
+// ユーザー操作（ブロック / 復活）
     function blockUser(isBlock) {
         var pass = document.getElementById("adminPass").value;
         var username = document.getElementById("blockUsername").value.trim();
         if (!pass) return alert("パスワードを入力してください");
         if (!username) return alert("ユーザー名を入力してください");
 
+        var statusText = isBlock ? "禁止" : "利用中";
         var confirmMsg = isBlock 
             ? "本当に「" + username + "」さんを利用停止にしますか？\n（過去の投稿も非表示になります）"
             : "「" + username + "」さんを利用再開（復活）させますか？\n（過去の投稿も再び表示されるようになります）";
 
         if (!confirm(confirmMsg)) return;
+
+        fetch(GAS_URL, {
+            method: "POST",
+            body: JSON.stringify({ action: "admin_block_user", password: pass, username: username, statusType: statusText })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                alert(username + " さんを「" + statusText + "」にしました。");
+                document.getElementById("blockUsername").value = "";
+                loadAdminTimeline();
+            } else {
+                alert("エラー: " + data.error);
+            }
+        });
+    }
 
         // 裏側の動作：禁止にする場合は「admin_block_user」を呼び出す
         // 復活（利用中）にする場合は、GAS側を直接拡張する代わりに、このフロントエンド側から特別な合図、
