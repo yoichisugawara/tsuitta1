@@ -86,8 +86,8 @@
                 localStorage.setItem("tsuitta_username", name);
                 
                 var display = document.getElementById("secretDisplay");
-                display.innerHTML = "<strong>【重要】引き継ぎ用の合言葉を発行しました！</strong><br>機種変の時に使います。メモしてね：<br><span style='color:red; font-size:16px; font-weight:bold;'>" + data.secretPhrase + "</span>";
-                display.style.display = "block";
+display.innerHTML = "<strong>【重要】引き継ぎ用の合言葉を発行しました！</strong><br>機種変の時に使います。メモ（またはスクリーンショット）を取ってください：<br><span style='color:red; font-size:18px; font-weight:bold;'>" + data.secretPhrase + "</span><br><br><button onclick='location.reload()' style='float:none; background:#28a745;'>メモした（タイムラインへ移動）</button>";
+display.style.display = "block";
                 
                 setTimeout(() => {
                     location.reload();
