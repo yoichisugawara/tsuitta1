@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>つい言った〜</title>
+    <style>
+        body { font-family: sans-serif; background: #f0f2f5; margin: 0; padding: 0; color: #333; }
+        .header { background: #fff; padding: 15px; text-align: center; font-size: 20px; font-weight: bold; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 100; }
+        .container { max-width: 500px; margin: 0 auto; background: #fff; min-height: 100vh; box-sizing: border-box; padding-bottom: 80px; }
+        .register-box, .post-box { padding: 15px; border-bottom: 8px solid #f0f2f5; }
+        input[type="text"], textarea { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; resize: none; }
+        button { background: #0095f6; color: white; border: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; font-size: 14px; cursor: pointer; margin-top: 8px; float: right; }
+        button:disabled { background: #ccc; }
+        .clear { clear: both; }
+        .secret-info { background: #fff9e6; padding: 10px; border-radius: 6px; font-size: 13px; margin-top: 8px; border: 1px solid #ffe0b2; }
+        .tweet { padding: 15px; border-bottom: 1px solid #eee; display: flex; flex-direction: column; }
+        .tweet-user { font-weight: bold; font-size: 15px; margin-bottom: 4px; }
+        .tweet-content { font-size: 15px; line-height: 1.4; white-space: pre-wrap; }
+        .tweet-time { font-size: 12px; color: #888; margin-top: 6px; }
+        .unko-btn { background: none; border: 1px solid #ddd; padding: 4px 12px; border-radius: 15px; font-size: 14px; cursor: pointer; float: left; margin-top: 6px; }
+        .unko-btn:hover { background: #f0f0f0; }
+        .loading { text-align: center; padding: 20px; color: #888; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">💩 つい言った〜</div>
+
+    <!-- 登録画面（アカウントがない場合のみ表示） -->
+    <div id="registerSection" class="register-box" style="display:none;">
+        <p style="margin:0 0 10px 0; font-size:14px; color:#666;">名前を決めてスタートしよう！</p>
+        <input type="text" id="usernameInput" placeholder="お名前（漢字もOK）" maxlength="15">
+        <button id="regBtn" onclick="registerUser()">登録する</button>
+        <div class="clear"></div>
+        <div id="secretDisplay" class="secret-info" style="display:none;"></div>
+    </div>
+
+    <!-- 投稿画面（アカウントがある場合表示） -->
+    <div id="postSection" class="post-box" style="display:none;">
+        <span id="welcomeMessage" style="font-size:14px; font-weight:bold;"></span>
+        <textarea id="tweetInput" placeholder="いまどうしてる？" rows="3" maxlength="140" style="margin-top:8px;"></textarea>
+        <button id="postBtn" onclick="postTweet()">つい言った〜</button>
+        <div class="clear"></div>
+    </div>
+
+    <!-- タイムライン -->
+    <div id="timeline" class="loading">タイムラインを読み込み中...💩</div>
+</div>
+
+<script>
+    // ⚠️【注意】ここにあなたのGASのウェブアプリURL（末尾が/execのもの）を貼り付けてください！
+    var GAS_URL = "https://script.google.com/macros/s/AKfycbzkhlTauW86zVi34tY6UJ_eJtUf8YeVQN6UmXyva8Efs6fKsLnlq4I2r6MIwrjMffzj2A/exec";
+
+    var myUserId = localStorage.getItem("tsuitta_user_id");
+    var myUsername = localStorage.getItem("tsuitta_username");
+
+    window.onload = function() {
+        if (!myUserId) {
+            document.getElementById("registerSection").style.display = "block";
+        } else {
+            document.getElementById("postSection").style.display = "block";
+            document.getElementById("welcomeMessage").innerText = "ログイン中: " + myUsername + " さん";
+        }
+        loadTimeline();
+    };
+
+    // ユーザー登録
+    function registerUser() {
+        var name = document.getElementById("usernameInput").value.trim();
+        if (!name) return alert("名前を入力してね");
+        
+        var btn = document.getElementById("regBtn");
+        btn.disabled = true;
+        btn.innerText = "登録中...";
+
+        fetch(GAS_URL, {
+            method: "POST",
+            body: JSON.stringify({ action: "register_user", username: name })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                localStorage.setItem("tsuitta_user_id", data.userId);
+                localStorage.setItem("tsuitta_username", name);
+                
+                var display = document.getElementById("secretDisplay");
+                display.innerHTML = "<strong>【重要】引き継ぎ用の合言葉を発行しました！</strong><br>機種変の時に使います。メモしてね：<br><span style='color:red; font-size:16px; font-weight:bold;'>" + data.secretPhrase + "</span>";
+                display.style.display = "block";
+                
+                setTimeout(() => {
+                    location.reload();
+                }, 5000); // 5秒後に自動リロードしてタイムラインへ
+            } else {
+                alert("エラーが発生しました: " + data.error);
+                btn.disabled = false;
+                btn.innerText = "登録する";
+            }
+        });
+    }
+
+    // ツイート投稿
+    function postTweet() {
+        var content = document.getElementById("tweetInput").value.trim();
+        if (!content) return alert("中身を入力してね");
+
+        var btn = document.getElementById("postBtn");
+        btn.disabled = true;
+        btn.innerText = "送信中...";
+
+        fetch(GAS_URL, {
+            method: "POST",
+            body: JSON.stringify({ action: "post_tweet", userId: myUserId, content: content })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById("tweetInput").value = "";
+                loadTimeline();
+            } else {
+                alert("投稿に失敗したよ💩: " + data.error);
+            }
+            btn.disabled = false;
+            btn.innerText = "つい言った〜";
+        });
+    }
+
+    // タイムライン読み込み
+    function loadTimeline() {
+        var tlContainer = document.getElementById("timeline");
+        
+        fetch(GAS_URL)
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) {
+                tlContainer.innerText = "読み込みエラーが発生しました💩";
+                return;
+            }
+            
+            tlContainer.innerHTML = "";
+            if (data.timeline.length === 0) {
+                tlContainer.innerText = "まだ誰もつぶやいていません。最初の💩を放ちましょう！";
+                return;
+            }
+
+            data.timeline.forEach(t => {
+                var div = document.createElement("div");
+                div.className = "tweet";
+                
+                var time = new Date(t.timestamp).toLocaleString("ja-JP");
+                
+                div.innerHTML = `
+                    <div class="tweet-user">${escapeHtml(t.username)}</div>
+                    <div class="tweet-content">${escapeHtml(t.content)}</div>
+                    <div class="tweet-time">${time}</div>
+                    <div>
+                        <button class="unko-btn" onclick="pushUnko('${t.id}', this)">💩 ${t.unkoCount}</button>
+                    </div>
+                `;
+                tlContainer.appendChild(div);
+            });
+        });
+    }
+
+    // 💩ボタンを押す
+    function pushUnko(tweetId, btnElement) {
+        btnElement.disabled = true;
+        fetch(GAS_URL, {
+            method: "POST",
+            body: JSON.stringify({ action: "push_unko", tweetId: tweetId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                btnElement.innerText = "💩 " + data.newCount;
+            }
+            btnElement.disabled = false;
+        });
+    }
+
+    // セキュリティ対策（文字の無害化）
+    function escapeHtml(str) {
+        return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+</script>
+</body>
+</html>
