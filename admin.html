@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>つい言った〜【管理者画面】</title>
+    <style>
+        body { font-family: sans-serif; background: #eaedf1; margin: 0; padding: 20px; color: #333; }
+        .admin-box { max-width: 600px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h2 { margin-top: 0; color: #d32f2f; border-bottom: 2px solid #d32f2f; padding-bottom: 8px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; }
+        input[type="password"], input[type="text"] { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        button { background: #d32f2f; color: white; border: none; padding: 10px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        button:hover { background: #b71c1c; }
+        .block-box { background: #fff3e0; border: 1px solid #ffe0b2; padding: 15px; border-radius: 4px; margin-bottom: 20px; }
+        .tweet-list { margin-top: 20px; }
+        .tweet-item { padding: 15px; border-bottom: 1px solid #eee; background: #fafafa; margin-bottom: 10px; border-radius: 4px; }
+        .tweet-header { font-weight: bold; display: flex; justify-content: space-between; font-size: 14px; }
+        .tweet-content { margin: 8px 0; white-space: pre-wrap; font-size: 15px; }
+        .del-btn { background: #757575; padding: 5px 10px; font-size: 12px; }
+        .del-btn:hover { background: #616161; }
+    </style>
+</head>
+<body>
+
+<div class="admin-box">
+    <h2>🔒 つい言った〜 管理者コントロール</h2>
+    
+    <!-- パスワード入力 -->
+    <div class="form-group">
+        <label for="adminPass">管理者パスワード（configのB2）</label>
+        <input type="password" id="adminPass" placeholder="パスワードを入力してください">
+    </div>
+
+    <!-- ユーザーブロック（出禁） -->
+    <div class="block-box">
+        <h3 style="margin-top:0; color:#e65100;">🚫 ユーザーの利用停止（出禁）</h3>
+        <div class="form-group">
+            <input type="text" id="blockUsername" placeholder="停止したいユーザーの「お名前」を正確に入力">
+        </div>
+        <button onclick="blockUser()" style="background:#e65100;">このユーザーの利用を禁止する</button>
+    </div>
+
+    <!-- 投稿一覧と削除 -->
+    <h3>📝 投稿の管理（最新30件）</h3>
+    <button onclick="loadAdminTimeline()" style="background:#0288d1; margin-bottom: 15px;">タイムラインを読み込む・更新する</button>
+    <div id="adminTimeline">ボタンを押して読み込んでください。</div>
+</div>
+
+<script>
+    // ⚠️【注意】ここにあなたのGASのウェブアプリURLを貼り付けてください！
+    var GAS_URL = "https://script.google.com/macros/s/AKfycbzkhlTauW86zVi34tY6UJ_eJtUf8YeVQN6UmXyva8Efs6fKsLnlq4I2r6MIwrjMffzj2A/exec";
+
+    // タイムライン読み込み
+    function loadAdminTimeline() {
+        var container = document.getElementById("adminTimeline");
+        container.innerText = "読み込み中...";
+
+        fetch(GAS_URL)
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) return container.innerText = "エラー: " + data.error;
+            
+            container.innerHTML = "";
+            if (data.timeline.length === 0) {
+                container.innerText = "投稿はありません。";
+                return;
+            }
+
+            data.timeline.forEach(t => {
+                var div = document.createElement("div");
+                div.className = "tweet-item";
+                div.innerHTML = `
+                    <div class="tweet-header">
+                        <span>👤 ${escapeHtml(t.username)}</span>
+                        <span>🕒 ${new Date(t.timestamp).toLocaleString("ja-JP")}</span>
+                    </div>
+                    <div class="tweet-content">${escapeHtml(t.content)}</div>
+                    <button class="del-btn" onclick="deleteTweet('${t.id}')">🗑️ この投稿を削除</button>
+                `;
+                container.appendChild(div);
+            });
+        });
+    }
+
+    // ツイート削除実行
+    function deleteTweet(tweetId) {
+        var pass = document.getElementById("adminPass").value;
+        if (!pass) return alert("パスワードを入力してください");
+        if (!confirm("本当にこの投稿を削除（非表示化）しますか？")) return;
+
+        fetch(GAS_URL, {
+            method: "POST",
+            body: JSON.stringify({ action: "admin_delete_tweet", password: pass, tweetId: tweetId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                alert("削除しました！");
+                loadAdminTimeline();
+            } else {
+                alert("エラー: " + data.error);
+            }
+        });
+    }
+
+    // ユーザーブロック実行
+    function blockUser() {
+        var pass = document.getElementById("adminPass").value;
+        var username = document.getElementById("blockUsername").value.trim();
+        if (!pass) return alert("パスワードを入力してください");
+        if (!username) return alert("ユーザー名を入力してください");
+        if (!confirm("本当に「" + username + "」さんを利用停止にしますか？\n（過去の投稿もすべて非表示になります）")) return;
+
+        fetch(GAS_URL, {
+            method: "POST",
+            body: JSON.stringify({ action: "admin_block_user", password: pass, username: username })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                alert(username + " さんを利用停止にしました。");
+                document.getElementById("blockUsername").value = "";
+                loadAdminTimeline();
+            } else {
+                alert("エラー: " + data.error);
+            }
+        });
+    }
+
+    function escapeHtml(str) {
+        return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+</script>
+</body>
+</html>
